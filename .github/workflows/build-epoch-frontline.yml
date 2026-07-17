@@ -3,10 +3,12 @@ name: Build Epoch Frontline APK
 on:
   push:
     branches: [ main ]
+    paths-ignore:
+      - 'release/**'
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 env:
   GRADLE_OPTS: -Dorg.gradle.daemon=false -Dorg.gradle.jvmargs=-Xmx3g
@@ -50,16 +52,27 @@ jobs:
           set -euo pipefail
           APK=epoch_frontline_android_v2/app/build/outputs/apk/debug/app-debug.apk
           test -s "$APK"
-          cp "$APK" EpochFrontline-v2.0.0-debug.apk
-          sha256sum EpochFrontline-v2.0.0-debug.apk > EpochFrontline-v2.0.0-debug.apk.sha256
-          ls -lh EpochFrontline-v2.0.0-debug.apk
+          mkdir -p release
+          cp "$APK" release/EpochFrontline-v2.0.0-debug.apk
+          sha256sum release/EpochFrontline-v2.0.0-debug.apk > release/EpochFrontline-v2.0.0-debug.apk.sha256
+          ls -lh release/EpochFrontline-v2.0.0-debug.apk
+
+      - name: Publish APK to repository
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add release/EpochFrontline-v2.0.0-debug.apk release/EpochFrontline-v2.0.0-debug.apk.sha256
+          git commit -m "Publish Epoch Frontline v2 APK" || exit 0
+          git push origin HEAD:main
 
       - name: Upload installable APK
         uses: actions/upload-artifact@v4
         with:
           name: EpochFrontline-v2-APK
           path: |
-            EpochFrontline-v2.0.0-debug.apk
-            EpochFrontline-v2.0.0-debug.apk.sha256
+            release/EpochFrontline-v2.0.0-debug.apk
+            release/EpochFrontline-v2.0.0-debug.apk.sha256
           if-no-files-found: error
           retention-days: 7
