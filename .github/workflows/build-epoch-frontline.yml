@@ -1,0 +1,65 @@
+name: Build Epoch Frontline APK
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  GRADLE_OPTS: -Dorg.gradle.daemon=false -Dorg.gradle.jvmargs=-Xmx3g
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout build payload
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle 8.11.1
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.11.1'
+
+      - name: Restore Android project
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat payload/p4_* > epoch-frontline.b64
+          base64 --decode epoch-frontline.b64 > epoch-frontline.tar.gz
+          echo "2d77dec9037785573c47c92cb6275045e29c76acb561dc86beef769417de8e06  epoch-frontline.tar.gz" | sha256sum -c -
+          tar -xzf epoch-frontline.tar.gz
+          test -f epoch_frontline_android_v2/app/build.gradle
+
+      - name: Build debug APK
+        working-directory: epoch_frontline_android_v2
+        run: gradle :app:assembleDebug --stacktrace
+
+      - name: Validate APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK=epoch_frontline_android_v2/app/build/outputs/apk/debug/app-debug.apk
+          test -s "$APK"
+          cp "$APK" EpochFrontline-v2.0.0-debug.apk
+          sha256sum EpochFrontline-v2.0.0-debug.apk > EpochFrontline-v2.0.0-debug.apk.sha256
+          ls -lh EpochFrontline-v2.0.0-debug.apk
+
+      - name: Upload installable APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: EpochFrontline-v2-APK
+          path: |
+            EpochFrontline-v2.0.0-debug.apk
+            EpochFrontline-v2.0.0-debug.apk.sha256
+          if-no-files-found: error
+          retention-days: 7
