@@ -5,6 +5,8 @@ on:
     branches: [ main ]
     paths-ignore:
       - 'release/**'
+  pull_request:
+    branches: [ main ]
   workflow_dispatch:
 
 permissions:
@@ -58,6 +60,7 @@ jobs:
           ls -lh release/EpochFrontline-v2.0.0-debug.apk
 
       - name: Publish APK to repository
+        if: github.event_name == 'push'
         shell: bash
         run: |
           set -euo pipefail
